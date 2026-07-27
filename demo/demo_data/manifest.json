@@ -1,0 +1,57 @@
+{
+  "name": "BREST synthetic COAD-panel toy cohort",
+  "version": 1,
+  "seed": 2027,
+  "artifact": "brest_toy_coad.npz",
+  "sha256": "953616a488e7a7768f56fad67b8efeb72b2152d76f736234da89c2da8e4cc016",
+  "license": "CC0-1.0",
+  "provenance": "All numerical values are generated locally by demo/build_demo_data.py. Gene symbols are labels selected from the BREST standard COAD panel.",
+  "scope": "Functional demonstration only; not a benchmark or biological dataset.",
+  "shapes": {
+    "cell_features": [
+      1536,
+      1536
+    ],
+    "cell_coords": [
+      1536,
+      2
+    ],
+    "bag_ptr": [
+      257
+    ],
+    "expression": [
+      256,
+      64
+    ],
+    "spot_coords": [
+      256,
+      2
+    ],
+    "slide_index": [
+      256
+    ],
+    "slide_names": [
+      4
+    ],
+    "slide_splits": [
+      4
+    ],
+    "genes": [
+      64
+    ],
+    "bulk_expression": [
+      256,
+      64
+    ],
+    "heldout_indices": [
+      12
+    ]
+  },
+  "splits": {
+    "train_A": "train",
+    "train_B": "train",
+    "validation": "validation",
+    "test": "test"
+  },
+  "heldout_gene_count": 12
+}

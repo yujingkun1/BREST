@@ -1,0 +1,10 @@
+name: brest
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip>=23
+  - pip:
+      - torch>=2.3
+      - torch-geometric>=2.5
+      - -e .[demo,training]

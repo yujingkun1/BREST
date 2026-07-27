@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+runs/
+cache/
+logs/
+dist/
+build/
+demo/outputs/
+
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.h5ad
+*.parquet
+*.pkl
+*.log
+
+# Large numerical artifacts are ignored by default. The tiny, generated demo
+# cohort is intentionally versioned.
+*.npy
+*.npz
+!demo/demo_data/brest_toy_coad.npz
+
+.DS_Store
