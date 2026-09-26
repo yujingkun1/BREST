@@ -36,7 +36,7 @@ class GraphConstructionTest(unittest.TestCase):
             dataset = VisiumCropBagDataset(str(root), "S1")
             self.assertIsInstance(dataset.crops, np.memmap)
             self.assertEqual(len(dataset), 2)
-            self.assertEqual(tuple(dataset[0].x.shape), (3, 8, 8, 3))
+            self.assertEqual(tuple(dataset[0].x.shape), (3, 224, 224, 3))
             self.assertEqual(tuple(dataset[1].y.shape), (1, 2))
 
 

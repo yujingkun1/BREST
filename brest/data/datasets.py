@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from PIL import Image
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
@@ -123,6 +124,11 @@ class VisiumCropBagDataset(Dataset):
         # Copy closes over neither the mmap nor a read-only NumPy view. This
         # keeps PyTorch collation safe while retaining lazy disk access.
         crops = np.array(self.crops[lo:hi], dtype=np.uint8, copy=True)
+        if crops.shape[1:3] != (224, 224):
+            crops = np.stack([
+                np.asarray(Image.fromarray(crop).resize((224, 224)), dtype=np.uint8)
+                for crop in crops
+            ])
         target = np.array(self.expression[index], dtype=np.float32, copy=True)
         return Data(
             x=torch.from_numpy(crops),

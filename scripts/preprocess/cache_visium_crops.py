@@ -47,6 +47,7 @@ def cache_sample(args, sample: str, panel: list[str]) -> dict:
             "cached": True,
             "spots": int(len(bag_ptr) - 1),
             "cells": int(len(crops)),
+            "stored_crop_pixels": int(crops.shape[1]),
         }
 
     with h5py.File(f"{args.hest_dir}/patches/{sample}.h5", "r") as handle:
@@ -88,11 +89,12 @@ def cache_sample(args, sample: str, panel: list[str]) -> dict:
         selected.append((index, float(cx), float(cy), cells.astype(np.float32)))
 
     total_cells = sum(len(item[3]) for item in selected)
+    stored_pixels = crop_pixels if args.native_size else 224
     for path in paths.values():
         _partial(path).unlink(missing_ok=True)
     crops = np.lib.format.open_memmap(
         _partial(paths["crops"]), mode="w+", dtype=np.uint8,
-        shape=(total_cells, 224, 224, 3),
+        shape=(total_cells, stored_pixels, stored_pixels, 3),
     )
     coords = np.lib.format.open_memmap(
         _partial(paths["coords"]), mode="w+", dtype=np.float32,
@@ -117,7 +119,7 @@ def cache_sample(args, sample: str, panel: list[str]) -> dict:
                 lx = min(max(int(round(cell[0])) - rx - half, 0), region_width - crop_pixels)
                 ly = min(max(int(round(cell[1])) - ry - half, 0), region_width - crop_pixels)
                 tile = region[ly : ly + crop_pixels, lx : lx + crop_pixels]
-                if crop_pixels != 224:
+                if not args.native_size and crop_pixels != 224:
                     tile = np.asarray(Image.fromarray(tile).resize((224, 224)), dtype=np.uint8)
                 crops[offset] = tile
                 coords[offset] = cell
@@ -139,10 +141,15 @@ def cache_sample(args, sample: str, panel: list[str]) -> dict:
         os.replace(_partial(path), path)
     print(
         f"[{sample}] {len(selected)} spots, {total_cells} crops, "
-        f"mpp={mpp:.3f} crop={crop_pixels}px",
+        f"mpp={mpp:.3f} source={crop_pixels}px stored={stored_pixels}px",
         flush=True,
     )
-    return {"sample": sample, "spots": len(selected), "cells": total_cells}
+    return {
+        "sample": sample,
+        "spots": len(selected),
+        "cells": total_cells,
+        "stored_crop_pixels": stored_pixels,
+    }
 
 
 def main() -> None:
@@ -154,6 +161,11 @@ def main() -> None:
     parser.add_argument("--phys-um", type=float, default=56.0)
     parser.add_argument("--max-cells", type=int, default=0)
     parser.add_argument("--max-spots", type=int, default=0)
+    parser.add_argument(
+        "--native-size",
+        action="store_true",
+        help="store each sample at its physical crop size and resize lazily during training",
+    )
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
     Path(args.out).mkdir(parents=True, exist_ok=True)
@@ -175,6 +187,7 @@ def main() -> None:
         "physical_crop_um": args.phys_um,
         "max_cells_per_spot": args.max_cells,
         "max_spots_per_sample": args.max_spots,
+        "native_size_storage": args.native_size,
         "seed": args.seed,
         "records": records,
     }

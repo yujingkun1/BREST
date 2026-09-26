@@ -58,12 +58,14 @@ python scripts/preprocess/cache_visium_crops.py \
   --hest-dir /path/to/hest_data \
   --panel-file /path/to/genes.txt \
   --out cache/lihc_crops \
-  --max-cells 32 \
-  --max-spots 600
+  --native-size
 ```
 
-The optional caps make large cohorts tractable and are sampled deterministically
-per sample. Their values and per-sample cell counts are stored in
+`--native-size` stores the full, unresized physical field of view for every
+cell and performs the same PIL resize lazily when a training spot is loaded.
+This losslessly reduces cache size for sub-224-pixel source crops. Optional
+`--max-cells` and `--max-spots` caps remain available for exploratory runs;
+their values, storage mode, and per-sample cell counts are recorded in
 `cache_config.json` and propagated into fine-tuning result artifacts.
 
 ## Xenium
