@@ -88,6 +88,22 @@ python -m brest.train.visium \
   --device cuda:0 \
   --output-json runs/coad_visium.json
 
+# Visium end-to-end H0-mini fine-tuning from aligned uint8 cell crops
+python -m brest.train.visium_finetune \
+  --cancer CSCC \
+  --crop-dir /path/to/cscc_crops \
+  --h0-checkpoint /path/to/H0-mini/pytorch_model.bin \
+  --encoder-lr 1e-5 \
+  --epochs 30 \
+  --output-json runs/cscc_full_ft.json \
+  --prediction-dir runs/cscc_full_ft_predictions \
+  --device cuda:0
+
+The fine-tuning artifact reports overall and per-gene Pearson correlation,
+MAE, MSE, and Relative Variation Distance (RVD) in de-normalised log1p space.
+RVD measures the relative squared discrepancy between predicted and true
+per-gene variance across spots; lower MAE, MSE, and RVD are better.
+
 # Xenium five-fold spatial cross-validation
 python -m brest.train.xenium \
   --feature-cache /path/to/sample_all_cls_patch_mean.npz \

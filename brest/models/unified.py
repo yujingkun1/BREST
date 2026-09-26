@@ -142,13 +142,18 @@ class UnifiedExpressionModel(nn.Module):
             h = h + self.pos_proj(normalized_pos)
         return self.spatial(h, edge_index, batch)
 
-    def forward(self, data) -> dict[str, torch.Tensor]:
+    def forward_features(self, x, edge_index, pos=None, batch=None) -> dict[str, torch.Tensor]:
+        """Predict from already encoded per-cell features.
+
+        This separate entry point lets end-to-end image training replace only
+        the frozen H0 feature lookup while keeping the BREST graph and gene
+        heads identical to the cached-feature path.
+        """
         # Gene-query MODULATION + additive aggregation: gate each CELL by the gene
         # queries (cell_pred), then mean-aggregate over the spot/slide. Aggregating
         # AFTER the (nonlinear) head -- mean(head(h)) not head(mean(h)) -- gives the
         # faithful per-cell cellular ST `cell_pred` and a better spot/bulk metric.
-        batch = getattr(data, "batch", None)
-        h_node = self.encode(data.x, data.edge_index, getattr(data, "pos", None), batch)
+        h_node = self.encode(x, edge_index, pos, batch)
         if self.granularity == "cell":
             cell_pred = self.head(h_node)
             return {"h_node": h_node, "prediction": cell_pred, "cell_pred": cell_pred}
@@ -157,3 +162,11 @@ class UnifiedExpressionModel(nn.Module):
         cell_pred = self.head(h_node)
         prediction = scatter(cell_pred, batch, dim=0, reduce="mean")
         return {"h_node": h_node, "prediction": prediction, "cell_pred": cell_pred}
+
+    def forward(self, data) -> dict[str, torch.Tensor]:
+        return self.forward_features(
+            data.x,
+            data.edge_index,
+            getattr(data, "pos", None),
+            getattr(data, "batch", None),
+        )

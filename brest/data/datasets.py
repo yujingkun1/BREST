@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import to_undirected
 
@@ -86,3 +87,46 @@ def build_bag_graphs(payload: dict[str, np.ndarray]) -> list[Data]:
             )
         )
     return graphs
+
+
+class VisiumCropBagDataset(Dataset):
+    """Lazy per-spot image-crop graphs for end-to-end H0-mini fine-tuning.
+
+    The large ``crops_<sample>.npy`` array stays memory-mapped. Only the cells
+    belonging to the requested spot are copied into a PyG ``Data`` object.
+    """
+
+    def __init__(self, crop_dir: str, sample: str) -> None:
+        self.sample = str(sample)
+        self.crops = np.load(f"{crop_dir}/crops_{sample}.npy", mmap_mode="r")
+        self.coords = np.load(f"{crop_dir}/coords_{sample}.npy", mmap_mode="r")
+        self.bag_ptr = np.load(f"{crop_dir}/bagptr_{sample}.npy")
+        self.expression = np.load(f"{crop_dir}/expr_{sample}.npy", mmap_mode="r")
+        if len(self.bag_ptr) != len(self.expression) + 1:
+            raise ValueError(f"{sample}: bag_ptr/expression length mismatch")
+        if int(self.bag_ptr[-1]) != len(self.crops) or len(self.coords) != len(self.crops):
+            raise ValueError(f"{sample}: crop/coordinate/bag_ptr length mismatch")
+        if self.crops.ndim != 4 or self.crops.shape[-1] != 3:
+            raise ValueError(f"{sample}: crops must be NHWC RGB, got {self.crops.shape}")
+
+    def __len__(self) -> int:
+        return len(self.expression)
+
+    def __getitem__(self, index: int) -> Data:
+        lo, hi = int(self.bag_ptr[index]), int(self.bag_ptr[index + 1])
+        coords = np.array(self.coords[lo:hi], dtype=np.float32, copy=True)
+        edges = build_delaunay_edges(coords)
+        if edges.shape[0] == 0:
+            edge_index = torch.empty((2, 0), dtype=torch.long)
+        else:
+            edge_index = to_undirected(torch.from_numpy(edges.T).long())
+        # Copy closes over neither the mmap nor a read-only NumPy view. This
+        # keeps PyTorch collation safe while retaining lazy disk access.
+        crops = np.array(self.crops[lo:hi], dtype=np.uint8, copy=True)
+        target = np.array(self.expression[index], dtype=np.float32, copy=True)
+        return Data(
+            x=torch.from_numpy(crops),
+            edge_index=edge_index,
+            pos=torch.from_numpy(coords),
+            y=torch.from_numpy(target).unsqueeze(0),
+        )

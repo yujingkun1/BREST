@@ -3,6 +3,7 @@ from .metrics import (
     gene_pearson_stats,
     mean_gene_pearson,
     overall_pearson,
+    regression_metrics,
     safe_pearson,
 )
 
@@ -11,5 +12,6 @@ __all__ = [
     "gene_pearson_stats",
     "mean_gene_pearson",
     "overall_pearson",
+    "regression_metrics",
     "safe_pearson",
 ]

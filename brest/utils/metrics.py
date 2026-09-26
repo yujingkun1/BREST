@@ -1,7 +1,8 @@
-"""Pearson correlation metrics used by BREST.
+"""Regression metrics used by BREST.
 
 overall_pearson    -- correlation over the flattened [N, G] prediction/target.
 mean_gene_pearson  -- mean of the per-gene (column-wise) correlations.
+regression_metrics -- PCC, MAE, MSE, and relative variation distance (RVD).
 
 Spatial models are scored in log1p space after de-normalising z-scored predictions
 (P = pred_z * sd + mu); model selection takes the epoch with the highest
@@ -47,6 +48,41 @@ def gene_pearson_stats(P: np.ndarray, T: np.ndarray) -> tuple[float, float]:
     """Mean and std of the per-gene correlation distribution (across genes)."""
     per = _per_gene_pearson(P, T)
     return float(np.nanmean(per)), float(np.nanstd(per))
+
+
+def regression_metrics(P: np.ndarray, T: np.ndarray) -> dict[str, float]:
+    """Return expression-regression metrics in de-normalised log1p space.
+
+    RVD follows the Relative Variation Distance definition from Stem: for each
+    non-constant gene, compare predicted and true variance across spots using
+    ``((var_pred - var_true) / var_true) ** 2``, then average across genes.
+    Genes with effectively zero true variance are excluded because their
+    relative variation is undefined.
+    """
+    prediction = np.asarray(P, dtype=np.float64)
+    target = np.asarray(T, dtype=np.float64)
+    if prediction.shape != target.shape:
+        raise ValueError(
+            f"Prediction/target shape mismatch: {prediction.shape} vs {target.shape}"
+        )
+    if prediction.ndim != 2 or prediction.size == 0:
+        raise ValueError(f"Expected non-empty [spots, genes] matrices, got {prediction.shape}")
+    error = prediction - target
+    true_variance = target.var(axis=0)
+    predicted_variance = prediction.var(axis=0)
+    varying = true_variance > 1e-12
+    rvd = (
+        float(np.mean(((predicted_variance[varying] - true_variance[varying])
+                       / true_variance[varying]) ** 2))
+        if np.any(varying) else float("nan")
+    )
+    return {
+        "overall_pearson": overall_pearson(prediction, target),
+        "mean_gene_pearson": mean_gene_pearson(prediction, target),
+        "mae": float(np.mean(np.abs(error))),
+        "mse": float(np.mean(error ** 2)),
+        "rvd": rvd,
+    }
 
 
 def completion_pearsons(

@@ -13,7 +13,12 @@ from brest.models import (
     UnifiedExpressionModel,
     load_backbone_by_symbol,
 )
-from brest.utils import completion_pearsons, mean_gene_pearson, overall_pearson
+from brest.utils import (
+    completion_pearsons,
+    mean_gene_pearson,
+    overall_pearson,
+    regression_metrics,
+)
 
 
 class UnifiedHeadTest(unittest.TestCase):
@@ -44,6 +49,23 @@ class UnifiedHeadTest(unittest.TestCase):
             use_local=False,
         )
         self.assertEqual(model(data)["prediction"].shape, (6, 7))
+
+    def test_feature_entry_point_matches_data_entry_point(self):
+        data = Data(
+            x=torch.randn(6, 8), pos=torch.randn(6, 2),
+            edge_index=torch.tensor([[0, 1, 1, 2, 3, 4, 4, 5],
+                                     [1, 0, 2, 1, 4, 3, 5, 4]]),
+            batch=torch.tensor([0, 0, 0, 1, 1, 1]),
+        )
+        model = UnifiedExpressionModel(
+            in_dim=8, num_genes=7, hidden_dim=16, n_layers=1, heads=4,
+            dropout=0.0,
+        ).eval()
+        direct = model(data)["prediction"]
+        explicit = model.forward_features(
+            data.x, data.edge_index, data.pos, data.batch
+        )["prediction"]
+        torch.testing.assert_close(direct, explicit)
 
     def test_gene_query_checkpoint_loads_into_linear_ablation(self):
         source = UnifiedExpressionModel(
@@ -77,6 +99,15 @@ class UnifiedHeadTest(unittest.TestCase):
 
 
 class MetricTest(unittest.TestCase):
+    def test_regression_metrics_include_relative_variation_distance(self):
+        target = np.array([[0.0, 1.0], [1.0, 3.0], [2.0, 5.0]], dtype=np.float32)
+        exact = regression_metrics(target, target)
+        self.assertAlmostEqual(exact["mae"], 0.0)
+        self.assertAlmostEqual(exact["mse"], 0.0)
+        self.assertAlmostEqual(exact["rvd"], 0.0)
+        scaled = regression_metrics(target * 2.0, target)
+        self.assertAlmostEqual(scaled["rvd"], 9.0)
+
     def test_overall_and_gene_pearson_are_distinct_metrics(self):
         target = np.array([[0.0, 10.0], [1.0, 20.0], [2.0, 30.0]], dtype=np.float32)
         prediction = np.array([[0.0, 30.0], [1.0, 20.0], [2.0, 10.0]], dtype=np.float32)

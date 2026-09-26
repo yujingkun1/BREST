@@ -10,6 +10,7 @@ from torch_geometric.data import Data
 
 from brest.data import (
     BulkGraphDataset,
+    VisiumCropBagDataset,
     build_delaunay_edges,
     collate_bulk,
     split_slides_by_patient,
@@ -22,6 +23,21 @@ class GraphConstructionTest(unittest.TestCase):
         edges = build_delaunay_edges(coords)
         self.assertEqual(edges.shape, (2, 2))
         self.assertEqual({tuple(edge) for edge in edges}, {(1, 2), (0, 2)})
+
+    def test_visium_crop_bags_are_loaded_lazily_and_aligned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            np.save(root / "crops_S1.npy", np.zeros((5, 8, 8, 3), dtype=np.uint8))
+            np.save(root / "coords_S1.npy", np.array(
+                [[0, 0], [1, 0], [0, 1], [4, 4], [5, 4]], dtype=np.float32
+            ))
+            np.save(root / "bagptr_S1.npy", np.array([0, 3, 5], dtype=np.int64))
+            np.save(root / "expr_S1.npy", np.array([[1, 2], [3, 4]], dtype=np.float32))
+            dataset = VisiumCropBagDataset(str(root), "S1")
+            self.assertIsInstance(dataset.crops, np.memmap)
+            self.assertEqual(len(dataset), 2)
+            self.assertEqual(tuple(dataset[0].x.shape), (3, 8, 8, 3))
+            self.assertEqual(tuple(dataset[1].y.shape), (1, 2))
 
 
 class BulkDatasetTest(unittest.TestCase):

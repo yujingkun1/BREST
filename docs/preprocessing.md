@@ -39,6 +39,33 @@ Each sample produces:
   - `genes`: `[G]` gene symbols
 - `coords_<sample>.npy`: `[N_cells, 2]` cell coordinates
 
+For end-to-end H0-mini fine-tuning, retain the aligned pre-encoding arrays:
+
+- `crops_<sample>.npy`: `[N_cells, 224, 224, 3]` uint8 RGB crops
+- `coords_<sample>.npy`: `[N_cells, 2]` cell coordinates
+- `bagptr_<sample>.npy`: CSR spot boundaries
+- `expr_<sample>.npy`: `[N_spots, G]` log1p expression
+- `genes.npy`: `[G]` gene symbols
+
+The fine-tuning runner memory-maps the crop arrays and loads one spot at a
+time; crop order must match `coords` and `bagptr` exactly.
+
+Build that cache directly from HEST and CellViT segmentations with:
+
+```bash
+python scripts/preprocess/cache_visium_crops.py \
+  --samples NCBI642 NCBI643 \
+  --hest-dir /path/to/hest_data \
+  --panel-file /path/to/genes.txt \
+  --out cache/lihc_crops \
+  --max-cells 32 \
+  --max-spots 600
+```
+
+The optional caps make large cohorts tractable and are sampled deterministically
+per sample. Their values and per-sample cell counts are stored in
+`cache_config.json` and propagated into fine-tuning result artifacts.
+
 ## Xenium
 
 The Xenium runner consumes an aligned cache and metadata file:
